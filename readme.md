@@ -40,3 +40,15 @@ jobs:
                 env:
                     DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
 ```
+
+## Server permissions
+
+The PHP-FPM worker user must be `nginx`. The deployment restores ownership of
+`runtime/` to `nginx:nginx`, with directory permissions `750` and file permissions
+`640`, after applying the configured project owner. Yii migrations and translation
+extraction also run as `nginx` to keep runtime file ownership consistent.
+
+The SSH deploy user must be allowed to run the permission commands and
+`sudo -u nginx php` without a password. Ensure that the CLI PHP version matches
+the application requirements and that `nginx` can read the deployed code and
+write to the translations directory. Any failed deployment command stops the action.

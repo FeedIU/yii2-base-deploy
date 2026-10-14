@@ -1,9 +1,12 @@
 #!/bin/bash
 
+set -euo pipefail
+trap 'echo "------ DEPLOY FAILED! -------------------------" >&2' ERR
+
 mkdir -p /root/.ssh
 ssh-keyscan -H "$2" >> /root/.ssh/known_hosts
 
-if [ -z "$DEPLOY_KEY" ];
+if [ -z "${DEPLOY_KEY:-}" ];
 then
 	echo $'\n' "------ DEPLOY KEY NOT SET YET! ----------------" $'\n'
 	exit 1
@@ -35,7 +38,10 @@ then
 
 	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chown -R $4:$4 $3"
 	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chmod 775 -R $3/web"
-	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chmod 777 -R $3/runtime/*",
+	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo mkdir -p '$3/runtime' &&
+		sudo chown -R nginx:nginx '$3/runtime' &&
+		sudo find '$3/runtime' -type d -exec chmod 750 {} \; &&
+		sudo find '$3/runtime' -type f -exec chmod 640 {} \;"
  	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chmod 777 -R $3/import"
 	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chmod 777 -R $3/messages/*"
 	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo chmod 777 -R $3/web/app"
@@ -44,11 +50,11 @@ then
 	
 	echo $'\n' "------ RUN MIGRATIONS -------------------------" $'\n'
 	
-	ssh -i /root/.ssh/id_rsa -tt $1@$2 "php $3/yii migrate --interactive=0"
+	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo -u nginx php '$3/yii' migrate --interactive=0"
 
  	echo $'\n' "------ UPDATE TRANSLATIONS -------------------------" $'\n'
 	
-	ssh -i /root/.ssh/id_rsa -tt $1@$2 "php $3/yii message/extract $3/config/languages.php --messagePath=$3/messages"
+	ssh -i /root/.ssh/id_rsa -tt $1@$2 "sudo -u nginx php '$3/yii' message/extract '$3/config/languages.php' --messagePath='$3/messages'"
 
 	echo $'\n' "------ CONGRATS! DEPLOY SUCCESSFUL!!! ---------" $'\n'
 	exit 0
